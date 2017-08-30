@@ -13,6 +13,7 @@ type SpaceChart struct {
 	Min          *float64           `json:"min,omitempty"`
 	Max          *float64           `json:"max,omitempty"`
 	Label        *string            `json:"label,omitempty"`
+	UseLastValue *bool              `json:"use_last_value,omitempty"`
 	RelatedSpace *uint              `json:"related_space,omitempty"`
 	Streams      []SpaceChartStream `json:"streams,omitempty"`
 }
