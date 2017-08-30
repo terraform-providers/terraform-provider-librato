@@ -50,11 +50,12 @@ The following arguments are supported:
 
 * `space_id` - (Required) The ID of the space this chart should be in.
 * `name` - (Required) The title of the chart when it is displayed.
-* `type` - (Optional) Indicates the type of chart. Must be one of line or
-  stacked (default to line).
+* `type` - (Optional) Indicates the type of chart. Must be one of line,
+  stacked, or bignumber (default to line).
 * `min` - (Optional) The minimum display value of the chart's Y-axis.
 * `max` - (Optional) The maximum display value of the chart's Y-axis.
 * `label` - (Optional) The Y-axis label.
+* `use_last_value` - (Optional) Use the most recent value (default) or summarize the chart.
 * `related_space` - (Optional) The ID of another space to which this chart is
   related.
 * `stream` - (Optional) Nested block describing a metric to use for data in the
