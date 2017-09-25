@@ -222,20 +222,20 @@ func resourceLibratoSpaceChartCreate(d *schema.ResourceData, meta interface{}) e
                 for j, tagsDataM := range tagsSet.List() {
                     tagsData := tagsDataM.(map[string]interface{})
                     var tag librato.Tag
-                    if vv, ok := tagsData["name"].(string); ok && vv != "" {
-                        tag.Name = librato.String(vv)
+                    if v, ok := tagsData["name"].(string); ok && v != "" {
+                        tag.Name = librato.String(v)
                     }
-                    if vv, ok := tagsData["grouped"].(bool); ok {
-                        tag.Grouped = librato.Bool(vv)
+                    if v, ok := tagsData["grouped"].(bool); ok {
+                        tag.Grouped = librato.Bool(v)
                     }
-                    if vv, ok := tagsData["dynamic"].(bool); ok {
-                        tag.Dynamic = librato.Bool(vv)
+                    if v, ok := tagsData["dynamic"].(bool); ok {
+                        tag.Dynamic = librato.Bool(v)
                     }
                     if v, ok := tagsData["values"]; ok {
                         vs := v.(*schema.Set)
                         values := make([]string, vs.Len())
-                        for i, v := range vs.List() {
-                            values[i] = v.(string)
+                        for k, v := range vs.List() {
+                            values[k] = v.(string)
                         }
                         tag.Values = values
                     }
