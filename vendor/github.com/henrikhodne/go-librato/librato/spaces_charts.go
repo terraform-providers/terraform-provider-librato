@@ -17,7 +17,7 @@ type SpaceChart struct {
 	Streams      []SpaceChartStream `json:"streams,omitempty"`
 }
 
-type Tag struct {
+type TagSet struct {
 	Name    *string   `json:"name"`
 	Grouped *bool     `json:"grouped,omitempty"`
 	Dynamic *bool     `json:"dynamic,omitempty"`
@@ -29,7 +29,7 @@ type SpaceChartStream struct {
 	Metric             *string  `json:"metric,omitempty"`
 	Source             *string  `json:"source,omitempty"`
 	Composite          *string  `json:"composite,omitempty"`
-	Tags               []Tag    `json:"tags,omitempty"`
+	Tags               []TagSet `json:"tags,omitempty"`
 	GroupFunction      *string  `json:"group_function,omitempty"`
 	SummaryFunction    *string  `json:"summary_function,omitempty"`
 	DownsampleFunction *string  `json:"downsample_function,omitempty"`
