@@ -18,29 +18,29 @@ type SpaceChart struct {
 }
 
 type Tag struct {
-    Name    *string  `json:"name"`
-    Grouped *bool    `json:"grouped,omitempty"`
-    Dynamic *bool    `json:"dynamic,omitempty"`
-    Values  []*string `json:"values"`
+	Name    *string   `json:"name"`
+	Grouped *bool     `json:"grouped,omitempty"`
+	Dynamic *bool     `json:"dynamic,omitempty"`
+	Values  []*string `json:"values"`
 }
 
 // SpaceChartStream represents a single stream in a chart in a Librato Space.
 type SpaceChartStream struct {
-	Metric            *string  `json:"metric,omitempty"`
-	Source            *string  `json:"source,omitempty"`
-	Composite         *string  `json:"composite,omitempty"`
-	Tags              []Tag    `json:"tags,omitempty"`
-	GroupFunction     *string  `json:"group_function,omitempty"`
-	SummaryFunction   *string  `json:"summary_function,omitempty"`
-    DownsampleFunction *string `json:"downsample_function,omitempty"`
-	Color             *string  `json:"color,omitempty"`
-	Name              *string  `json:"name,omitempty"`
-	UnitsShort        *string  `json:"units_short,omitempty"`
-	UnitsLong         *string  `json:"units_long,omitempty"`
-	Min               *float64 `json:"min,omitempty"`
-	Max               *float64 `json:"max,omitempty"`
-	TransformFunction *string  `json:"transform_function,omitempty"`
-	Period            *int64   `json:"period,omitempty"`
+	Metric             *string  `json:"metric,omitempty"`
+	Source             *string  `json:"source,omitempty"`
+	Composite          *string  `json:"composite,omitempty"`
+	Tags               []Tag    `json:"tags,omitempty"`
+	GroupFunction      *string  `json:"group_function,omitempty"`
+	SummaryFunction    *string  `json:"summary_function,omitempty"`
+	DownsampleFunction *string  `json:"downsample_function,omitempty"`
+	Color              *string  `json:"color,omitempty"`
+	Name               *string  `json:"name,omitempty"`
+	UnitsShort         *string  `json:"units_short,omitempty"`
+	UnitsLong          *string  `json:"units_long,omitempty"`
+	Min                *float64 `json:"min,omitempty"`
+	Max                *float64 `json:"max,omitempty"`
+	TransformFunction  *string  `json:"transform_function,omitempty"`
+	Period             *int64   `json:"period,omitempty"`
 }
 
 // CreateChart creates a chart in a given Librato Space.
