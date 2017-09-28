@@ -218,8 +218,8 @@ func resourceLibratoSpaceChartCreate(d *schema.ResourceData, meta interface{}) e
 			}
 			if v, ok := streamData["tag"]; ok {
 				tagsList := v.([]interface{})
-				tags := make([]librato.Tag, len(tagsList))
-				for j, tagsDataM := range tagsList {
+				var tags []librato.Tag
+				for _, tagsDataM := range tagsList {
 					tagsData := tagsDataM.(map[string]interface{})
 					var tag librato.Tag
 					if v, ok := tagsData["name"].(string); ok && v != "" {
@@ -239,7 +239,7 @@ func resourceLibratoSpaceChartCreate(d *schema.ResourceData, meta interface{}) e
 						}
 						tag.Values = values
 					}
-					tags[j] = tag
+					tags = append(tags, tag)
 				}
 				stream.Tags = tags
 			}
@@ -405,7 +405,7 @@ func resourceLibratoSpaceChartStreamsGather(d *schema.ResourceData, streams []li
 		}
 		if s.Tags != nil {
 			//stream["foobar"] = *s.Color
-			retTags := make([]map[string]interface{}, 0, len(s.Tags))
+			var retTags []map[string]interface{}
 			for _, t := range s.Tags {
 				tag := make(map[string]interface{})
 				tag["name"] = *t.Name
