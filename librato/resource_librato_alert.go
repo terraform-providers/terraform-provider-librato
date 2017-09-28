@@ -64,6 +64,29 @@ func resourceLibratoAlert() *schema.Resource {
 							Type:     schema.TypeString,
 							Optional: true,
 						},
+						"tag": {
+							Type:          schema.TypeList,
+							Optional:      true,
+							ConflictsWith: []string{"condition.source"},
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"name": {
+										Type:     schema.TypeString,
+										Required: true,
+									},
+									"grouped": {
+										Type:     schema.TypeBool,
+										Optional: true,
+									},
+									"values": {
+										Type:     schema.TypeList,
+										Optional: true,
+										Elem:     &schema.Schema{Type: schema.TypeString},
+									},
+								},
+							},
+						},
+
 						"detect_reset": {
 							Type:     schema.TypeBool,
 							Optional: true,
@@ -174,6 +197,30 @@ func resourceLibratoAlertCreate(d *schema.ResourceData, meta interface{}) error 
 			}
 			if v, ok := conditionData["source"].(string); ok && v != "" {
 				condition.Source = librato.String(v)
+			}
+			if v, ok := conditionData["tag"]; ok {
+				tagsList := v.([]interface{})
+				var tags []librato.AlertConditionTagSet
+				for _, tagsDataM := range tagsList {
+					tagsData := tagsDataM.(map[string]interface{})
+					var tag librato.AlertConditionTagSet
+					if v, ok := tagsData["name"].(string); ok && v != "" {
+						tag.Name = librato.String(v)
+					}
+					if v, ok := tagsData["grouped"].(bool); ok {
+						tag.Grouped = librato.Bool(v)
+					}
+					if v, ok := tagsData["values"]; ok {
+						vs := v.([]interface{})
+						var values []*string
+						for _, v := range vs {
+							values = append(values, librato.String(v.(string)))
+						}
+						tag.Values = values
+					}
+					tags = append(tags, tag)
+				}
+				condition.Tags = tags
 			}
 			if v, ok := conditionData["detect_reset"].(bool); ok {
 				condition.DetectReset = librato.Bool(v)
@@ -315,6 +362,24 @@ func resourceLibratoAlertConditionsGather(d *schema.ResourceData, conditions []l
 		if c.Source != nil {
 			condition["source"] = *c.Source
 		}
+		if c.Tags != nil {
+			var retTags []map[string]interface{}
+			for _, t := range c.Tags {
+				tag := make(map[string]interface{})
+				tag["name"] = *t.Name
+				var values []string
+				for _, v := range t.Values {
+					values = append(values, *v)
+				}
+				tag["values"] = values
+				if t.Grouped != nil {
+					tag["grouped"] = *t.Grouped
+				}
+				retTags = append(retTags, tag)
+
+			}
+			condition["tag"] = retTags
+		}
 		if c.DetectReset != nil {
 			condition["detect_reset"] = *c.MetricName
 		}
@@ -390,6 +455,30 @@ func resourceLibratoAlertUpdate(d *schema.ResourceData, meta interface{}) error 
 		}
 		if v, ok := conditionData["source"].(string); ok && v != "" {
 			condition.Source = librato.String(v)
+		}
+		if v, ok := conditionData["tag"]; ok {
+			tagsList := v.([]interface{})
+			var tags []librato.AlertConditionTagSet
+			for _, tagsDataM := range tagsList {
+				tagsData := tagsDataM.(map[string]interface{})
+				var tag librato.AlertConditionTagSet
+				if v, ok := tagsData["name"].(string); ok && v != "" {
+					tag.Name = librato.String(v)
+				}
+				if v, ok := tagsData["grouped"].(bool); ok {
+					tag.Grouped = librato.Bool(v)
+				}
+				if v, ok := tagsData["values"]; ok {
+					vs := v.([]interface{})
+					var values []*string
+					for _, v := range vs {
+						values = append(values, librato.String(v.(string)))
+					}
+					tag.Values = values
+				}
+				tags = append(tags, tag)
+			}
+			condition.Tags = tags
 		}
 		if v, ok := conditionData["detect_reset"].(bool); ok {
 			condition.DetectReset = librato.Bool(v)

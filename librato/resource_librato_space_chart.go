@@ -233,9 +233,9 @@ func resourceLibratoSpaceChartCreate(d *schema.ResourceData, meta interface{}) e
 					}
 					if v, ok := tagsData["values"]; ok {
 						vs := v.([]interface{})
-						var values []string
+						var values []*string
 						for _, v := range vs {
-							values = append(values, v.(string))
+							values = append(values, librato.String(v.(string)))
 						}
 						tag.Values = values
 					}
@@ -404,12 +404,15 @@ func resourceLibratoSpaceChartStreamsGather(d *schema.ResourceData, streams []li
 			stream["max"] = *s.Max
 		}
 		if s.Tags != nil {
-			//stream["foobar"] = *s.Color
 			var retTags []map[string]interface{}
 			for _, t := range s.Tags {
 				tag := make(map[string]interface{})
 				tag["name"] = *t.Name
-				tag["values"] = t.Values
+				var values []string
+				for _, v := range t.Values {
+					values = append(values, *v)
+				}
+				tag["values"] = values
 				if t.Grouped != nil {
 					tag["grouped"] = *t.Grouped
 				}
@@ -420,7 +423,6 @@ func resourceLibratoSpaceChartStreamsGather(d *schema.ResourceData, streams []li
 
 			}
 			stream["tag"] = retTags
-
 		}
 		retStreams = append(retStreams, stream)
 	}
@@ -531,9 +533,9 @@ func resourceLibratoSpaceChartUpdate(d *schema.ResourceData, meta interface{}) e
 					}
 					if v, ok := tagsData["values"]; ok {
 						vs := v.([]interface{})
-						values := make([]string, len(vs))
-						for k, v := range vs {
-							values[k] = v.(string)
+						var values []*string
+						for _, v := range vs {
+							values = append(values, librato.String(v.(string)))
 						}
 						tag.Values = values
 					}
