@@ -52,6 +52,27 @@ func TestAccLibratoSpaceChart_Full(t *testing.T) {
 	})
 }
 
+func TestAccLibratoSpaceChart_Full_Tags(t *testing.T) {
+	var spaceChart librato.SpaceChart
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckLibratoSpaceChartDestroy,
+		Steps: []resource.TestStep{
+			resource.TestStep{
+				Config: testAccCheckLibratoSpaceChartConfig_full_tags,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckLibratoSpaceChartExists("librato_space_chart.foobar", &spaceChart),
+					testAccCheckLibratoSpaceChartName(&spaceChart, "Foo Bar"),
+					resource.TestCheckResourceAttr(
+						"librato_space_chart.foobar", "name", "Foo Bar"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccLibratoSpaceChart_Updated(t *testing.T) {
 	var spaceChart librato.SpaceChart
 
@@ -216,6 +237,67 @@ resource "librato_space_chart" "foobar" {
     stream {
         metric = "librato.cpu.percent.idle"
         source = "*"
+        group_function = "average"
+        summary_function = "max"
+        name = "CPU usage"
+        color = "#990000"
+        units_short = "%"
+        units_long = "percent"
+        min = 0
+        max = 100
+        transform_function = "x * 100"
+        period = 60
+    }
+}`
+
+const testAccCheckLibratoSpaceChartConfig_full_tags = `
+resource "librato_space" "foobar" {
+    name = "Foo Bar"
+}
+
+resource "librato_space" "barbaz" {
+    name = "Bar Baz"
+}
+
+resource "librato_space_chart" "foobar" {
+    space_id = "${librato_space.foobar.id}"
+    name = "Foo Bar"
+    type = "line"
+    min = 0
+    max = 100
+    label = "Percent"
+    related_space = "${librato_space.barbaz.id}"
+
+    # Minimal metric stream
+    stream {
+        metric = "librato.cpu.percent.idle"
+        tag {
+            name = "env"
+            values = ["prod"]
+        }
+    }
+
+    # Minimal composite stream
+    stream {
+        composite = "s(\"cpu\", \"*\")"
+    }
+
+    # Full metric stream
+    stream {
+        metric = "librato.cpu.percent.idle"
+        tag {
+            name = "env"
+            dynamic = true
+        }
+        tag {
+            name = "region"
+            grouped = true
+            values = ["*"]
+        }
+        tag {
+            name = "type"
+            values = ["api"]
+        }
         group_function = "average"
         summary_function = "max"
         name = "CPU usage"

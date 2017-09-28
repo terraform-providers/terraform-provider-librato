@@ -30,7 +30,7 @@ func resourceLibratoSpace() *schema.Resource {
 			},
 			"tags": {
 				Type:     schema.TypeBool,
-                Optional: true,
+				Optional: true,
 			},
 		},
 	}
