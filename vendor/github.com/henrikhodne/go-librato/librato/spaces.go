@@ -15,7 +15,7 @@ type SpacesService struct {
 type Space struct {
 	Name *string `json:"name"`
 	ID   *uint   `json:"id,omitempty"`
-	Tags *bool   `json:"tags"`
+	Tags *bool   `json:"tagsi,omitempty"`
 }
 
 func (s Space) String() string {
