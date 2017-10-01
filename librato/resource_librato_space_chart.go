@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"reflect"
+	"sort"
 	"strconv"
 	"time"
 
@@ -165,7 +166,30 @@ func resourceLibratoSpaceChartHash(v interface{}) int {
 	buf.WriteString(fmt.Sprintf("%s-", m["metric"].(string)))
 	buf.WriteString(fmt.Sprintf("%s-", m["source"].(string)))
 	buf.WriteString(fmt.Sprintf("%s-", m["composite"].(string)))
-
+	tags := m["tag"].([]interface{})
+	less := func(i, j int) bool {
+		left := tags[i].(map[string]interface{})
+		right := tags[j].(map[string]interface{})
+		return left["name"].(string) < right["name"].(string)
+	}
+	sort.SliceStable(tags, less)
+	for _, v := range tags {
+		tag := v.(map[string]interface{})
+		if name, ok := tag["name"]; ok {
+			buf.WriteString(fmt.Sprintf("%s-", name.(string)))
+		}
+		if dynamic, ok := tag["dynamic"]; ok {
+			buf.WriteString(fmt.Sprintf("%s-", dynamic.(bool)))
+		}
+		if grouped, ok := tag["grouped"]; ok {
+			buf.WriteString(fmt.Sprintf("%s-", grouped.(bool)))
+		}
+		values := tag["values"].([]interface{})
+		sort.SliceStable(values, func(i, j int) bool { return values[i].(string) < values[j].(string) })
+		for _, tagValue := range values {
+			buf.WriteString(fmt.Sprintf("%s-", tagValue.(string)))
+		}
+	}
 	return hashcode.String(buf.String())
 }
 
@@ -241,6 +265,7 @@ func resourceLibratoSpaceChartCreate(d *schema.ResourceData, meta interface{}) e
 					}
 					tags = append(tags, tag)
 				}
+				sortTags(tags)
 				stream.Tags = tags
 			}
 			if v, ok := streamData["composite"].(string); ok && v != "" {
@@ -541,6 +566,7 @@ func resourceLibratoSpaceChartUpdate(d *schema.ResourceData, meta interface{}) e
 					}
 					tags = append(tags, tag)
 				}
+				sortTags(tags)
 				stream.Tags = tags
 			}
 			streams[i] = stream
@@ -567,6 +593,23 @@ func resourceLibratoSpaceChartUpdate(d *schema.ResourceData, meta interface{}) e
 			if getErr != nil {
 				return changedChart, "", getErr
 			}
+
+			// When one stream is updated it became last in API output. Hence order of streams
+			// become different. DeepEqual will return false in this case. That is why we sort
+			// streams based on metric and name here.
+			var streams []librato.SpaceChartStream
+			streamLess := func(i, j int) bool {
+				if *streams[i].Metric != *streams[j].Metric {
+					return *streams[i].Metric < *streams[j].Metric
+				} else {
+					return *streams[i].Name < *streams[j].Name
+				}
+			}
+			streams = changedChart.Streams
+			sort.Slice(streams, streamLess)
+			streams = fullChart.Streams
+			sort.Slice(streams, streamLess)
+
 			isEqual := reflect.DeepEqual(*fullChart, *changedChart)
 			log.Printf("[DEBUG] Updated Librato Space Chart %d match: %t", chartID, isEqual)
 			return changedChart, fmt.Sprintf("%t", isEqual), nil
@@ -579,6 +622,16 @@ func resourceLibratoSpaceChartUpdate(d *schema.ResourceData, meta interface{}) e
 	}
 
 	return resourceLibratoSpaceChartRead(d, meta)
+}
+
+func sortTags(tags []librato.TagSet) {
+	sort.Slice(tags, func(i, j int) bool { return *(tags[i].Name) < *(tags[j].Name) })
+	for _, v := range tags {
+		tag := v
+		values := tag.Values
+		sort.SliceStable(values, func(i, j int) bool { return *(values[i]) < *(values[j]) })
+	}
+
 }
 
 func resourceLibratoSpaceChartDelete(d *schema.ResourceData, meta interface{}) error {
