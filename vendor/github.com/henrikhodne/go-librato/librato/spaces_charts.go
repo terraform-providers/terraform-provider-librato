@@ -21,7 +21,7 @@ type TagSet struct {
 	Name    *string   `json:"name"`
 	Grouped *bool     `json:"grouped,omitempty"`
 	Dynamic *bool     `json:"dynamic,omitempty"`
-	Values  []*string `json:"values"`
+	Values  []*string `json:"values,omitempty"`
 }
 
 // SpaceChartStream represents a single stream in a chart in a Librato Space.
