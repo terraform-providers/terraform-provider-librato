@@ -87,6 +87,37 @@ func TestAccLibratoAlert_Full(t *testing.T) {
 	})
 }
 
+func TestAccLibratoAlert_Full_Tag(t *testing.T) {
+	var alert librato.Alert
+	name := acctest.RandString(10)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckLibratoAlertDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccCheckLibratoAlertConfig_full_tag(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckLibratoAlertExists("librato_alert.foobar", &alert),
+					testAccCheckLibratoAlertName(&alert, name),
+					testAccCheckLibratoAlertDescription(&alert, "A Test Alert"),
+					resource.TestCheckResourceAttr(
+						"librato_alert.foobar", "name", name),
+					resource.TestCheckResourceAttr(
+						"librato_alert.foobar", "condition.836525194.metric_name", "librato.cpu.percent.idle"),
+					resource.TestCheckResourceAttr(
+						"librato_alert.foobar", "condition.836525194.type", "above"),
+					resource.TestCheckResourceAttr(
+						"librato_alert.foobar", "condition.836525194.threshold", "10"),
+					resource.TestCheckResourceAttr(
+						"librato_alert.foobar", "condition.836525194.duration", "600"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccLibratoAlert_Updated(t *testing.T) {
 	var alert librato.Alert
 	name := acctest.RandString(10)
@@ -314,6 +345,40 @@ resource "librato_alert" "foobar" {
 }`, name)
 }
 
+func testAccCheckLibratoAlertConfig_full_tag(name string) string {
+	return fmt.Sprintf(`
+resource "librato_service" "foobar" {
+    title = "Foo Bar"
+    type = "mail"
+    settings = <<EOF
+{
+  "addresses": "admin@example.com"
+}
+EOF
+}
+
+resource "librato_alert" "foobar" {
+    name = "%s"
+    description = "A Test Alert"
+    services = [ "${librato_service.foobar.id}" ]
+    condition {
+      type = "above"
+      threshold = 10
+      duration = 600
+      metric_name = "librato.cpu.percent.idle"
+      tag {
+          "name" = "env"
+          "values" = ["prod"]
+      }
+    }
+    attributes {
+      runbook_url = "https://www.youtube.com/watch?v=oHg5SJYRHA0"
+    }
+    active = false
+    rearm_seconds = 300
+}`, name)
+
+}
 func testAccCheckLibratoAlertConfig_full_update(name string) string {
 	return fmt.Sprintf(`
 resource "librato_service" "foobar" {

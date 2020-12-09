@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"reflect"
+	"sort"
 	"strconv"
 	"time"
 
@@ -68,7 +69,36 @@ func resourceLibratoSpaceChart() *schema.Resource {
 						"source": {
 							Type:          schema.TypeString,
 							Optional:      true,
-							ConflictsWith: []string{"stream.composite"},
+							ConflictsWith: []string{"stream.composite", "stream.tag"},
+						},
+						"tag": {
+							Type:          schema.TypeList,
+							Optional:      true,
+							ConflictsWith: []string{"stream.composite", "stream.source"},
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"name": {
+										Type:     schema.TypeString,
+										Required: true,
+									},
+									"grouped": {
+										Type:     schema.TypeBool,
+										Optional: true,
+										ConflictsWith: []string{"stream.tag.values"},
+									},
+									"dynamic": {
+										Type:          schema.TypeBool,
+										Optional:      true,
+										ConflictsWith: []string{"stream.tag.values"},
+									},
+									"values": {
+										Type:          schema.TypeList,
+										Optional:      true,
+										ConflictsWith: []string{"stream.tag.dynamic", "stream.tag.grouped"},
+										Elem:          &schema.Schema{Type: schema.TypeString},
+									},
+								},
+							},
 						},
 						"group_function": {
 							Type:          schema.TypeString,
@@ -78,7 +108,7 @@ func resourceLibratoSpaceChart() *schema.Resource {
 						"composite": {
 							Type:          schema.TypeString,
 							Optional:      true,
-							ConflictsWith: []string{"stream.metric", "stream.source", "stream.group_function"},
+							ConflictsWith: []string{"stream.metric", "stream.source", "stream.tag", "stream.group_function"},
 						},
 						"summary_function": {
 							Type:     schema.TypeString,
@@ -114,6 +144,10 @@ func resourceLibratoSpaceChart() *schema.Resource {
 							Type:     schema.TypeString,
 							Optional: true,
 						},
+						"downsample_function": {
+							Type:     schema.TypeString,
+							Optional: true,
+						},
 						"period": {
 							Type:     schema.TypeInt,
 							Optional: true,
@@ -129,10 +163,34 @@ func resourceLibratoSpaceChart() *schema.Resource {
 func resourceLibratoSpaceChartHash(v interface{}) int {
 	var buf bytes.Buffer
 	m := v.(map[string]interface{})
+	buf.WriteString(fmt.Sprintf("%s-", m["name"].(string)))
 	buf.WriteString(fmt.Sprintf("%s-", m["metric"].(string)))
 	buf.WriteString(fmt.Sprintf("%s-", m["source"].(string)))
 	buf.WriteString(fmt.Sprintf("%s-", m["composite"].(string)))
-
+	tags := m["tag"].([]interface{})
+	less := func(i, j int) bool {
+		left := tags[i].(map[string]interface{})
+		right := tags[j].(map[string]interface{})
+		return left["name"].(string) < right["name"].(string)
+	}
+	sort.SliceStable(tags, less)
+	for _, v := range tags {
+		tag := v.(map[string]interface{})
+		if name, ok := tag["name"]; ok {
+			buf.WriteString(fmt.Sprintf("%s-", name.(string)))
+		}
+		if dynamic, ok := tag["dynamic"]; ok {
+			buf.WriteString(fmt.Sprintf("%s-", dynamic.(bool)))
+		}
+		if grouped, ok := tag["grouped"]; ok {
+			buf.WriteString(fmt.Sprintf("%s-", grouped.(bool)))
+		}
+		values := tag["values"].([]interface{})
+		sort.SliceStable(values, func(i, j int) bool { return values[i].(string) < values[j].(string) })
+		for _, tagValue := range values {
+			buf.WriteString(fmt.Sprintf("%s-", tagValue.(string)))
+		}
+	}
 	return hashcode.String(buf.String())
 }
 
@@ -177,8 +235,39 @@ func resourceLibratoSpaceChartCreate(d *schema.ResourceData, meta interface{}) e
 			if v, ok := streamData["metric"].(string); ok && v != "" {
 				stream.Metric = librato.String(v)
 			}
+			if v, ok := streamData["name"].(string); ok && v != "" {
+				stream.Name = librato.String(v)
+			}
 			if v, ok := streamData["source"].(string); ok && v != "" {
 				stream.Source = librato.String(v)
+			}
+			if v, ok := streamData["tag"]; ok {
+				tagsList := v.([]interface{})
+				var tags []librato.TagSet
+				for _, tagsDataM := range tagsList {
+					tagsData := tagsDataM.(map[string]interface{})
+					var tag librato.TagSet
+					if v, ok := tagsData["name"].(string); ok && v != "" {
+						tag.Name = librato.String(v)
+					}
+					if v, ok := tagsData["grouped"].(bool); ok {
+						tag.Grouped = librato.Bool(v)
+					}
+					if v, ok := tagsData["dynamic"].(bool); ok {
+						tag.Dynamic = librato.Bool(v)
+					}
+					if v, ok := tagsData["values"]; ok {
+						vs := v.([]interface{})
+						var values []*string
+						for _, v := range vs {
+							values = append(values, librato.String(v.(string)))
+						}
+						tag.Values = values
+					}
+					tags = append(tags, tag)
+				}
+				sortTags(tags)
+				stream.Tags = tags
 			}
 			if v, ok := streamData["composite"].(string); ok && v != "" {
 				stream.Composite = librato.String(v)
@@ -191,6 +280,9 @@ func resourceLibratoSpaceChartCreate(d *schema.ResourceData, meta interface{}) e
 			}
 			if v, ok := streamData["transform_function"].(string); ok && v != "" {
 				stream.TransformFunction = librato.String(v)
+			}
+			if v, ok := streamData["downsample_function"].(string); ok && v != "" {
+				stream.DownsampleFunction = librato.String(v)
 			}
 			if v, ok := streamData["color"].(string); ok && v != "" {
 				stream.Color = librato.String(v)
@@ -298,6 +390,9 @@ func resourceLibratoSpaceChartStreamsGather(d *schema.ResourceData, streams []li
 	retStreams := make([]map[string]interface{}, 0, len(streams))
 	for _, s := range streams {
 		stream := make(map[string]interface{})
+		if s.Name != nil {
+			stream["name"] = *s.Name
+		}
 		if s.Metric != nil {
 			stream["metric"] = *s.Metric
 		}
@@ -316,6 +411,9 @@ func resourceLibratoSpaceChartStreamsGather(d *schema.ResourceData, streams []li
 		if s.TransformFunction != nil {
 			stream["transform_function"] = *s.TransformFunction
 		}
+		if s.DownsampleFunction != nil {
+			stream["downsample_function"] = *s.DownsampleFunction
+		}
 		if s.Color != nil {
 			stream["color"] = *s.Color
 		}
@@ -324,6 +422,33 @@ func resourceLibratoSpaceChartStreamsGather(d *schema.ResourceData, streams []li
 		}
 		if s.UnitsLong != nil {
 			stream["units_long"] = *s.UnitsLong
+		}
+		if s.Min != nil {
+			stream["min"] = *s.Min
+		}
+		if s.Max != nil {
+			stream["max"] = *s.Max
+		}
+		if s.Tags != nil {
+			var retTags []map[string]interface{}
+			for _, t := range s.Tags {
+				tag := make(map[string]interface{})
+				tag["name"] = *t.Name
+				var values []string
+				for _, v := range t.Values {
+					values = append(values, *v)
+				}
+				tag["values"] = values
+				if t.Grouped != nil {
+					tag["grouped"] = *t.Grouped
+				}
+				if t.Dynamic != nil {
+					tag["dynamic"] = *t.Dynamic
+				}
+				retTags = append(retTags, tag)
+
+			}
+			stream["tag"] = retTags
 		}
 		retStreams = append(retStreams, stream)
 	}
@@ -381,6 +506,9 @@ func resourceLibratoSpaceChartUpdate(d *schema.ResourceData, meta interface{}) e
 		for i, streamDataM := range vs.List() {
 			streamData := streamDataM.(map[string]interface{})
 			var stream librato.SpaceChartStream
+			if v, ok := streamData["name"].(string); ok && v != "" {
+				stream.Name = librato.String(v)
+			}
 			if v, ok := streamData["metric"].(string); ok && v != "" {
 				stream.Metric = librato.String(v)
 			}
@@ -414,6 +542,34 @@ func resourceLibratoSpaceChartUpdate(d *schema.ResourceData, meta interface{}) e
 			if v, ok := streamData["max"].(float64); ok && !math.IsNaN(v) {
 				stream.Max = librato.Float(v)
 			}
+			if v, ok := streamData["tag"]; ok {
+				tagsList := v.([]interface{})
+				var tags []librato.TagSet
+				for _, tagsDataM := range tagsList {
+					tagsData := tagsDataM.(map[string]interface{})
+					var tag librato.TagSet
+					if v, ok := tagsData["name"].(string); ok && v != "" {
+						tag.Name = librato.String(v)
+					}
+					if v, ok := tagsData["grouped"].(bool); ok {
+						tag.Grouped = librato.Bool(v)
+					}
+					if v, ok := tagsData["dynamic"].(bool); ok {
+						tag.Dynamic = librato.Bool(v)
+					}
+					if v, ok := tagsData["values"]; ok {
+						vs := v.([]interface{})
+						var values []*string
+						for _, v := range vs {
+							values = append(values, librato.String(v.(string)))
+						}
+						tag.Values = values
+					}
+					tags = append(tags, tag)
+				}
+				sortTags(tags)
+				stream.Tags = tags
+			}
 			streams[i] = stream
 		}
 		spaceChart.Streams = streams
@@ -438,6 +594,23 @@ func resourceLibratoSpaceChartUpdate(d *schema.ResourceData, meta interface{}) e
 			if getErr != nil {
 				return changedChart, "", getErr
 			}
+
+			// When one stream is updated it became last in API output. Hence order of streams
+			// become different. DeepEqual will return false in this case. That is why we sort
+			// streams based on metric and name here.
+			var streams []librato.SpaceChartStream
+			streamLess := func(i, j int) bool {
+				if *streams[i].Metric != *streams[j].Metric {
+					return *streams[i].Metric < *streams[j].Metric
+				} else {
+					return *streams[i].Name < *streams[j].Name
+				}
+			}
+			streams = changedChart.Streams
+			sort.Slice(streams, streamLess)
+			streams = fullChart.Streams
+			sort.Slice(streams, streamLess)
+
 			isEqual := reflect.DeepEqual(*fullChart, *changedChart)
 			log.Printf("[DEBUG] Updated Librato Space Chart %d match: %t", chartID, isEqual)
 			return changedChart, fmt.Sprintf("%t", isEqual), nil
@@ -450,6 +623,16 @@ func resourceLibratoSpaceChartUpdate(d *schema.ResourceData, meta interface{}) e
 	}
 
 	return resourceLibratoSpaceChartRead(d, meta)
+}
+
+func sortTags(tags []librato.TagSet) {
+	sort.Slice(tags, func(i, j int) bool { return *(tags[i].Name) < *(tags[j].Name) })
+	for _, v := range tags {
+		tag := v
+		values := tag.Values
+		sort.SliceStable(values, func(i, j int) bool { return *(values[i]) < *(values[j]) })
+	}
+
 }
 
 func resourceLibratoSpaceChartDelete(d *schema.ResourceData, meta interface{}) error {

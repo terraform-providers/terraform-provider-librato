@@ -28,6 +28,10 @@ func resourceLibratoSpace() *schema.Resource {
 				Type:     schema.TypeInt,
 				Computed: true,
 			},
+			"tags": {
+				Type:     schema.TypeBool,
+				Optional: true,
+			},
 		},
 	}
 }
@@ -36,8 +40,9 @@ func resourceLibratoSpaceCreate(d *schema.ResourceData, meta interface{}) error 
 	client := meta.(*librato.Client)
 
 	name := d.Get("name").(string)
+	tags := d.Get("tags").(bool)
 
-	space, _, err := client.Spaces.Create(&librato.Space{Name: librato.String(name)})
+	space, _, err := client.Spaces.Create(&librato.Space{Name: librato.String(name), Tags: librato.Bool(tags)})
 	if err != nil {
 		return fmt.Errorf("Error creating Librato space %s: %s", name, err)
 	}
