@@ -55,6 +55,11 @@ func resourceLibratoSpaceChart() *schema.Resource {
 				Type:     schema.TypeInt,
 				Optional: true,
 			},
+			"use_last_value": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  true,
+			},
 			"stream": {
 				Type:     schema.TypeSet,
 				Optional: true,
@@ -164,6 +169,9 @@ func resourceLibratoSpaceChartCreate(d *schema.ResourceData, meta interface{}) e
 	}
 	if v, ok := d.GetOk("label"); ok {
 		spaceChart.Label = librato.String(v.(string))
+	}
+	if v, ok := d.GetOk("use_last_value"); ok {
+		spaceChart.UseLastValue = librato.Bool(v.(bool))
 	}
 	if v, ok := d.GetOk("related_space"); ok {
 		spaceChart.RelatedSpace = librato.Uint(uint(v.(int)))
@@ -280,6 +288,11 @@ func resourceLibratoSpaceChartReadResult(d *schema.ResourceData, chart *librato.
 			return err
 		}
 	}
+	if chart.UseLastValue != nil {
+		if err := d.Set("use_last_value", *chart.UseLastValue); err != nil {
+			return err
+		}
+	}
 	if chart.RelatedSpace != nil {
 		if err := d.Set("related_space", *chart.RelatedSpace); err != nil {
 			return err
@@ -370,6 +383,10 @@ func resourceLibratoSpaceChartUpdate(d *schema.ResourceData, meta interface{}) e
 	if d.HasChange("label") {
 		spaceChart.Label = librato.String(d.Get("label").(string))
 		fullChart.Label = spaceChart.Label
+	}
+	if d.HasChange("use_last_value") {
+		spaceChart.UseLastValue = librato.Bool(d.Get("use_last_value").(bool))
+		fullChart.UseLastValue = spaceChart.UseLastValue
 	}
 	if d.HasChange("related_space") {
 		spaceChart.RelatedSpace = librato.Uint(d.Get("related_space").(uint))

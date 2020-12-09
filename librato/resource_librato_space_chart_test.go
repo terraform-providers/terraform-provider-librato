@@ -199,6 +199,7 @@ resource "librato_space_chart" "foobar" {
     min = 0
     max = 100
     label = "Percent"
+		use_last_value = false
     related_space = "${librato_space.barbaz.id}"
 
     # Minimal metric stream
